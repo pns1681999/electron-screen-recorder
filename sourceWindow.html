@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Action</title>
+  </head>
+  <body>
+    <!-- alight action window vertical -->
+    <div
+      id="root"
+      style="
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      "
+    >
+      <span style="-webkit-app-region: drag">💠</span>
+      <button id="btnStart">Select a screen</button>
+    </div>
+
+    <!-- a button on bottom center, allow user select a screen before start -->
+    <script type="module" src="/src/renderer/source-window/index.ts"></script>
+  </body>
+</html>
