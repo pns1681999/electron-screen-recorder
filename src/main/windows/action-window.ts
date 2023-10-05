@@ -40,7 +40,7 @@ export default class DrawWindow extends BrowserWindow {
     //Set on top with level screen-saver(101) higher level dock-window(20) and higher BorderWindow and DrawWindow
     this.setAlwaysOnTop(true, 'screen-saver');
     // Open the DevTools.
-    this.webContents.openDevTools({ mode: 'detach' });
+    // this.webContents.openDevTools({ mode: 'detach' });
 
     this.setContentProtection(true);
   }

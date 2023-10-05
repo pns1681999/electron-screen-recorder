@@ -1,23 +1,11 @@
-import {
-  BrowserWindow,
-  ipcMain,
-  desktopCapturer,
-  dialog,
-  screen,
-} from 'electron';
+import { BrowserWindow } from 'electron';
 import path from 'path';
-import { writeFile } from 'fs/promises';
 // Define class DrawWindow extends from BrowserWindow
 
 export default class Window extends BrowserWindow {
   constructor() {
-    // Get the width and height of the primary display
-    const mainScreen = screen.getPrimaryDisplay();
-    const w = mainScreen.size.width;
-    const h = mainScreen.size.height;
     super({
-      width: w,
-      height: h,
+      maximizable: true,
       // display window at bottom left corner
       x: 0,
       y: 0,
@@ -25,7 +13,7 @@ export default class Window extends BrowserWindow {
       //Make the window larger than the screen (outside the dock bar)
       enableLargerThanScreen: true,
       movable: true,
-      resizable: false,
+      resizable: true,
       //In Windows, the taskbar will not show the icon of the window
       skipTaskbar: false,
       //Make frameless window (without title bar and border)
@@ -45,10 +33,11 @@ export default class Window extends BrowserWindow {
         )
       );
     }
+    this.maximize();
     //ActionWindow can be dragged
 
     //Set on top with level screen-saver(101) higher level dock-window(20) and higher BorderWindow and DrawWindow
     // Open the DevTools.
-    this.webContents.openDevTools({ mode: 'detach' });
+    // this.webContents.openDevTools({ mode: 'detach' });
   }
 }
