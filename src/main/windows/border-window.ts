@@ -1,19 +1,19 @@
-import { BrowserWindow, screen } from 'electron';
+import { BrowserWindow } from 'electron';
 import path from 'path';
 // Define class BorderWindow extends from BrowserWindow
 export default class BorderWindow extends BrowserWindow {
-  constructor() {
+  constructor(display: Electron.Display) {
     // Get the width and height of the primary display
-    const { width, height } = screen.getPrimaryDisplay().bounds;
+    const { width, height } = display.bounds;
     super({
       width,
       height,
-      x: 0,
-      y: 0,
+      x: display.bounds.x,
+      y: display.bounds.y,
       hasShadow: false,
       //Make the window larger than the screen (outside the dock bar)
       enableLargerThanScreen: true,
-      resizable: false,
+      // resizable: false,
       movable: false,
       //In Windows, the taskbar will not show the icon of the window
       skipTaskbar: true,
@@ -38,6 +38,7 @@ export default class BorderWindow extends BrowserWindow {
     }
     //Set on top with level screen-saver(101)
     this.setAlwaysOnTop(true, 'screen-saver');
+    this.setContentProtection(true);
     //Set ignore mouse event
     this.setIgnoreMouseEvents(true);
     //If device not MacOs, set fullscreen to hide the taskbar

@@ -2,13 +2,15 @@ import { BrowserWindow } from 'electron';
 import path from 'path';
 // Define class DrawWindow extends from BrowserWindow
 export default class DrawWindow extends BrowserWindow {
-  constructor() {
+  constructor(display: Electron.Display) {
     // Get the width and height of the primary display
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { width, height } = display.bounds;
     super({
-      width: 90,
-      height: 200,
-      x: 0,
-      y: 0,
+      width: 340,
+      height: 80,
+      x: display.bounds.x,
+      y: display.bounds.y,
       hasShadow: false,
       //Make the window larger than the screen (outside the dock bar)
       enableLargerThanScreen: true,

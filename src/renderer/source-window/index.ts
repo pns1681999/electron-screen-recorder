@@ -1,114 +1,98 @@
-/**
- * This file will automatically be loaded by vite and run in the "renderer" context.
- * To learn more about the differences between the "main" and the "renderer" context in
- * Electron, visit:
- *
- * https://electronjs.org/docs/tutorial/application-architecture#main-and-renderer-processes
- *
- * By default, Node.js integration in this file is disabled. When enabling Node.js integration
- * in a renderer process, please be aware of potential security implications. You can read
- * more about security risks here:
- *
- * https://electronjs.org/docs/tutorial/security
- *
- * To enable Node.js integration in this file, open up `main.ts` and enable the `nodeIntegration`
- * flag:
- *
- * ```
- *  // Create the browser window.
- *  mainWindow = new BrowserWindow({
- *    width: 800,
- *    height: 600,
- *    webPreferences: {
- *      nodeIntegration: true
- *    }
- *  });
- * ```
- */
-
 import './index.css';
+import { Modal } from 'flowbite';
+import type { ModalOptions, ModalInterface } from 'flowbite';
 
-const btnStart = document.getElementById('btnStart');
+const btnAnalyzeVideo = document.getElementById('btn-analyze');
+const btnRecordVideo = document.getElementById('btn-record');
+const $modalElement: HTMLElement = document.querySelector('#popup-modal');
 
-let state = 'idle';
+let modal: ModalInterface = null;
+let sourceId: string = null;
 
-const startButton = document.getElementById('btnStart');
-if (state === 'ready') {
-  startButton.innerHTML = 'Start';
-  startButton.addEventListener('click', () => {
-    console.log('start recording');
-    window.api.startRecording();
-    state = 'recording';
-  });
-} else if (state === 'recording') {
-  startButton.innerHTML = 'Pause';
-  startButton.addEventListener('click', () => {
-    console.log('pause recording');
-    window.api.pauseRecording();
-    state = 'paused';
-  });
-} else if (state === 'paused') {
-  startButton.innerHTML = 'Resume';
-  startButton.addEventListener('click', () => {
-    console.log('resume recording');
-    window.api.resumeRecording();
-    state = 'recording';
-  });
-} else {
-  startButton.innerHTML = 'Select Source';
-  startButton.addEventListener('click', async () => {
-    // handle select source
-    const sources: any = await window.api.getSources();
+// close modal
+document.querySelector('.modal-close-button').addEventListener('click', () => {
+  console.log('close modal');
+  modal?.hide();
+});
+const startRerecording = () => {
+  modal.hide();
+  console.log('start rerecording');
+  window.api.selectSource(sourceId);
+};
 
-    // display sources on dialog box, allow user to select source
-    // create dialog box
-    const dialog = document.createElement('dialog');
-    dialog.id = 'dialog';
-    dialog.style.display = 'block';
-    dialog.style.position = 'absolute';
-    dialog.style.top = '50%';
-    dialog.style.left = '50%';
-    dialog.style.transform = 'translate(-50%, -50%)';
-    dialog.style.width = '400px';
-    dialog.style.padding = '1rem';
+const showSourceListModal = (sources: any[]) => {
+  const selectButton = document.getElementById('btn-select-source');
 
-    // create select element
-    const select = document.createElement('select');
-    select.id = 'select';
-    select.style.width = '100%';
-    select.style.padding = '0.5rem';
-    select.style.marginBottom = '1rem';
-    select.style.border = '1px solid #ccc';
+  const modalOptions: ModalOptions = {
+    onHide: () => {
+      console.log('modal is hidden');
+      // remove event listener from select button
+      selectButton.removeEventListener('click', startRerecording);
+    },
+    onShow: () => {
+      console.log('modal is shown');
+      sourceId = null;
+    },
+  };
 
-    // create option elements
-    const option = document.createElement('option');
-    option.value = '';
-    option.innerHTML = 'Select a source';
-    select.appendChild(option);
+  // build modal content
+  const listElement = document.getElementById('source-list');
+  const listItems = sources.map((source: any) => {
+    const listItem = document.createElement('div');
+    listItem.classList.add(
+      'flex',
+      'flex-col',
+      'justify-between',
+      'items-center',
+      'p-4',
+      'text-dark-500',
+      'font-bold'
+    );
+    listItem.innerHTML = `
+      <img src="${source.thumbnail}" alt="${source.name}" class="w-32 h-24 cursor-pointer hover:opacity-75 "/>
+      <div class="text-sm">${source.name}</div>
+    `;
 
-    sources.forEach((source: any) => {
-      const option = document.createElement('option');
-      option.value = source.id;
-      option.innerHTML = source.name;
-      select.appendChild(option);
+    listItem.addEventListener('click', () => {
+      // send sourceId to actionWindow
+      // set selected class
+      listItem.classList.add('border-2', 'border-red-400');
+      // remove selected class from other list items
+      const listItems = document.querySelectorAll('#source-list > div');
+      listItems.forEach((item: any) => {
+        if (item !== listItem) {
+          item.classList.remove('border-2', 'border-red-400');
+        }
+      });
+      sourceId = source.id;
+      if (sourceId) {
+        selectButton.addEventListener('click', startRerecording);
+      }
     });
-
-    // create button elements
-    const button = document.createElement('button');
-    button.id = 'btnSelect';
-    button.innerHTML = 'Select';
-    // add elements to dialog box
-    dialog.appendChild(select);
-    dialog.appendChild(button);
-    document.body.appendChild(dialog);
-
-    // handle select button
-    button.addEventListener('click', async () => {
-      const sourceId = select.value;
-      console.log('sourceId: ', sourceId);
-      await window.api.selectSource(sourceId);
-      dialog.remove();
-      state = 'ready';
-    });
+    return listItem;
   });
-}
+
+  // append list items to list element
+  // clear list element
+  listElement.innerHTML = '';
+  listItems.forEach((listItem: any) => {
+    listElement.appendChild(listItem);
+  });
+
+  // show modal
+  modal = new Modal($modalElement, modalOptions);
+  modal.show();
+};
+
+btnAnalyzeVideo.addEventListener('click', () => {
+  console.log('analyze video');
+  // not implemented yet
+  alert('Not implemented yet');
+});
+
+btnRecordVideo.addEventListener('click', async () => {
+  console.log('record video');
+  // handle select source
+  const sources: any = await window.api.getSources();
+  showSourceListModal(sources);
+});

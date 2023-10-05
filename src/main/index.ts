@@ -1,4 +1,11 @@
-import { app, BrowserWindow, ipcMain, desktopCapturer, dialog } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  desktopCapturer,
+  dialog,
+  screen,
+} from 'electron';
 import { writeFile } from 'fs/promises';
 
 import {
@@ -13,45 +20,32 @@ import {
 // app.commandLine.appendSwitch('disable-features', 'IOSurfaceCapturer');
 app.commandLine.appendSwitch('enable-features', 'ScreenCaptureKitMac');
 
+app.setName('Yarikata');
+
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
   app.quit();
 }
 
-const windows = new Map();
+const windows: Map<string, BorderWindow> = new Map();
 
-const createBorderWindow = () => {
-  // Check if the borderWindow is already open do not create a new one
-  if (windows.has('borderWindow')) {
-    return;
-  }
-  const borderWindow = new BorderWindow();
+const createBorderWindow = (display: Electron.Display) => {
+  const borderWindow = new BorderWindow(display);
   windows.set('borderWindow', borderWindow);
 };
 
-const createActionWindow = () => {
-  // Check if the borderWindow is already open do not create a new one
-  if (windows.has('actionWindow')) {
-    return;
-  }
-  const actionWindow = new ActionWindow();
+const createActionWindow = (display: Electron.Display) => {
+  const actionWindow = new ActionWindow(display);
   actionWindow.setParentWindow(windows.get('borderWindow'));
   windows.set('actionWindow', actionWindow);
 };
 
-const createDrawWindow = () => {
-  // Check if the borderWindow is already open do not create a new one
-  if (windows.has('drawWindow')) {
-    return;
-  }
-  const drawWindow = new DrawWindow();
+const createDrawWindow = (display: Electron.Display) => {
+  const drawWindow = new DrawWindow(display);
   windows.set('drawWindow', drawWindow);
 };
 
 const createMainWindow = () => {
-  if (windows.has('sourceWindow')) {
-    return;
-  }
   const window = new SourceWindow();
   window.setParentWindow(windows.get('borderWindow'));
   windows.set('sourceWindow', window);
@@ -77,12 +71,40 @@ const toggleDrawWindow = () => {
   }
 };
 
+const createWindows = (display: Electron.Display) => {
+  createBorderWindow(display);
+  createActionWindow(display);
+  createDrawWindow(display);
+};
+
+const destroyRecordWindows = () => {
+  const drawWindow = windows.get('drawWindow');
+  const borderWindow = windows.get('borderWindow');
+  const actionWindow = windows.get('actionWindow');
+  drawWindow && drawWindow.destroy();
+  borderWindow && borderWindow.destroy();
+  actionWindow && actionWindow.destroy();
+  windows.delete('drawWindow');
+  windows.delete('borderWindow');
+  windows.delete('actionWindow');
+};
+
 const handleSelectSource = async (event: any, sourceId: any) => {
   const sourceWindow = windows.get('sourceWindow');
-  // close sourceWindow
-  sourceWindow.close();
+  // hide sourceWindow
+  sourceWindow.hide();
 
-  // send sourceId to actionWindow
+  // TODO: How to move all windows to the display where the sourceId is located
+  const allDisplays = screen.getAllDisplays();
+  // we need to find the display where the sourceId is located
+  const display = allDisplays.find((display) => {
+    const id = `screen:${display.id}:0`;
+    return id === sourceId;
+  });
+
+  // create windows for recording
+  createWindows(display);
+  // send event to renderers
   const actionWindow = windows.get('actionWindow');
   actionWindow.webContents.send('sourceId-selected', sourceId);
 };
@@ -91,7 +113,7 @@ const handleGetSources = async () => {
   try {
     console.log('get-sources from main');
     const sources = await desktopCapturer.getSources({
-      types: ['screen', 'window'],
+      types: ['screen'],
     });
     // convert thumbnail to base64
     sources.forEach((source: any) => {
@@ -109,14 +131,18 @@ const handleGetSources = async () => {
   }
 };
 
-const handleSave = async (event: any, buffer: any) => {
+const exitRecord = () => {
+  const sourceWindow = windows.get('sourceWindow');
+  sourceWindow.show();
+  destroyRecordWindows();
+};
 
-  console.log('save-video from main');
+const handleSave = async (event: any, buffer: any) => {
+  exitRecord();
   const { canceled, filePath } = await dialog.showSaveDialog({
     buttonLabel: 'Save video',
     defaultPath: `vid-${Date.now()}.webm`,
   });
-
 
   if (canceled) {
     console.log('user canceled save video');
@@ -130,25 +156,39 @@ const handleSave = async (event: any, buffer: any) => {
   return filePath;
 };
 
+const handleStartRecord = () => {
+  const borderWindow = windows.get('borderWindow');
+  borderWindow.webContents.send('start-record');
+};
+const handlePauseRecord = () => {
+  const borderWindow = windows.get('borderWindow');
+  borderWindow.webContents.send('pause-record');
+};
+const handleResumeRecord = () => {
+  const borderWindow = windows.get('borderWindow');
+  borderWindow.webContents.send('resume-record');
+};
+
+const handleStartRecordAfterCountdown = () => {
+  const actionWindow = windows.get('actionWindow');
+  actionWindow.webContents.send('start-record-after-countdown');
+};
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', () => {
-  createBorderWindow();
-  createActionWindow();
-  createDrawWindow();
   createMainWindow();
-
-  //Handle ipcMain events
 
   ipcMain.handle('get-sources', handleGetSources);
   ipcMain.handle('select-source', handleSelectSource);
-  ipcMain.handle('save-video', handleSave);
-
-  //Handle ipcMain events
-  ipcMain.on('toggle-draw', () => {
-    toggleDrawWindow();
-  });
+  ipcMain.on('save-video', handleSave);
+  ipcMain.on('exit-record', exitRecord);
+  ipcMain.on('toggle-draw', toggleDrawWindow);
+  ipcMain.on('start-record', handleStartRecord);
+  ipcMain.on('pause-record', handlePauseRecord);
+  ipcMain.on('resume-record', handleResumeRecord);
+  ipcMain.on('start-record-after-countdown', handleStartRecordAfterCountdown);
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common
@@ -164,9 +204,7 @@ app.on('activate', () => {
   // On OS X it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
-    createBorderWindow();
-    createActionWindow();
-    createDrawWindow();
+    createMainWindow();
   }
 });
 

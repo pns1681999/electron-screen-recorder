@@ -4,20 +4,45 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 let mediaRecorder: MediaRecorder; // MediaRecorder instance to capture footage
-const recordedChunks: Blob[] = [];
+let recordedChunks: Blob[] = [];
 
 contextBridge.exposeInMainWorld('api', {
   toggleDraw: () => ipcRenderer.send('toggle-draw'),
+  startAfterCountdown: () => ipcRenderer.send('start-record-after-countdown'),
   onClearCanvas: (callback: () => void) =>
     ipcRenderer.on('clear-canvas', callback),
+
+  onStartRecord: (callback: () => void) =>
+    ipcRenderer.on('start-record', callback),
+  onStartRecordAfterCountdown: (callback: () => void) =>
+    ipcRenderer.on('start-record-after-countdown', callback),
+  onPauseRecord: (callback: () => void) =>
+    ipcRenderer.on('pause-record', callback),
+  onResumeRecord: (callback: () => void) =>
+    ipcRenderer.on('resume-record', callback),
 
   getSources: async () => ipcRenderer.invoke('get-sources'),
   selectSource: (sourceId: string) =>
     ipcRenderer.invoke('select-source', sourceId),
-  startRecording: () => mediaRecorder.start(),
-  stopRecording: () => mediaRecorder.stop(),
-  pauseRecording: () => mediaRecorder.pause(),
-  resumeRecording: () => mediaRecorder.resume(),
+  startRecording: () => {
+    ipcRenderer.send('start-record');
+  },
+  stopRecording: () => {
+    if (mediaRecorder.state === 'inactive') {
+      ipcRenderer.send('exit-record');
+    } else {
+      mediaRecorder.stop();
+      ipcRenderer.send('start-record');
+    }
+  },
+  pauseRecording: () => {
+    mediaRecorder.pause();
+    ipcRenderer.send('pause-record');
+  },
+  resumeRecording: () => {
+    mediaRecorder.resume();
+    ipcRenderer.send('resume-record');
+  },
   toggleRecording: () => {
     console.log('MediaRecorder.state: ', mediaRecorder.state);
     if (mediaRecorder.state === 'recording') {
@@ -54,7 +79,9 @@ const handleStop = async () => {
 
   const buffer = Buffer.from(await blob.arrayBuffer());
   console.log('buffer', buffer);
-  ipcRenderer.invoke('save-video', buffer);
+  mediaRecorder = null;
+  recordedChunks = [];
+  ipcRenderer.send('save-video', buffer);
 };
 
 const handleStream = (stream: MediaStream) => {
@@ -88,4 +115,8 @@ const handleSelectSource = async (sourceId: string) => {
 
 ipcRenderer.on('sourceId-selected', (event, sourceId) => {
   handleSelectSource(sourceId);
+});
+
+ipcRenderer.on('start-record-after-countdown', () => {
+  mediaRecorder.start();
 });

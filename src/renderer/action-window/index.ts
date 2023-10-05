@@ -28,48 +28,58 @@
 
 import './index.css';
 
+let isDrawing = false;
 const toggleDrawBtn = document.getElementById('draw');
+const drawLabel = document.getElementById('drawLabel');
 toggleDrawBtn.addEventListener('click', () => {
-  console.log('object');
+  isDrawing = !isDrawing;
+  if (isDrawing) {
+    toggleDrawBtn.classList.remove('icon-[ic--baseline-draw]');
+    toggleDrawBtn.classList.add('icon-[ic--baseline-block]');
+    drawLabel.innerHTML = 'Stop drawing';
+  } else {
+    toggleDrawBtn.classList.remove('icon-[ic--baseline-block]');
+    toggleDrawBtn.classList.add('icon-[ic--baseline-draw]');
+    drawLabel.innerHTML = 'Start drawing';
+  }
   window.api.toggleDraw();
 });
-console.log(
-  '👋 This message is being logged by "renderer.ts", included via Vite'
-);
 
-let state = 'idle';
+let state = 'ready';
 const startButton = document.getElementById('btnStart');
-const pauseButton = document.getElementById('btnPause');
-
-window.api.onSourceWindowReady(() => {
-  console.log('source window ready');
-  state = 'ready';
-});
+const startLabel = document.getElementById('startLabel');
+const stopButton = document.getElementById('btnStop');
 
 startButton.addEventListener('click', () => {
   console.log('state', state);
   if (state === 'idle') {
     console.log('select source');
   } else if (state === 'ready') {
-    console.log('start recording');
     window.api.startRecording();
-    state = 'recording';
-    startButton.innerHTML = 'Stop';
   } else if (state === 'recording') {
-    window.api.stopRecording();
-    console.log('stop recording');
+    window.api.pauseRecording();
+    state = 'paused';
+    startButton.classList.remove('icon-[ic--baseline-pause-circle]');
+    startButton.classList.add('icon-[ic--baseline-play-circle]');
+    startLabel.innerHTML = 'Resume recording';
+  } else if (state === 'paused') {
+    window.api.resumeRecording();
+    state = 'recording';
+    startButton.classList.remove('icon-[ic--baseline-play-circle]');
+    startButton.classList.add('icon-[ic--baseline-pause-circle]');
+    startLabel.innerHTML = 'Pause recording';
+  }
+});
+stopButton.addEventListener('click', () => {
+  window.api.stopRecording();
+  if (state !== 'ready') {
     state = 'idle';
   }
 });
 
-pauseButton.addEventListener('click', () => {
-  if (state === 'recording') {
-    window.api.pauseRecording();
-    state = 'paused';
-    pauseButton.innerHTML = 'Resume';
-  } else if (state === 'paused') {
-    window.api.resumeRecording();
-    state = 'recording';
-    pauseButton.innerHTML = 'Pause';
-  }
+window.api.onStartRecordAfterCountdown(() => {
+  state = 'recording';
+  startButton.classList.remove('icon-[ic--baseline-circle]');
+  startButton.classList.add('icon-[ic--baseline-pause-circle]');
+  startLabel.innerHTML = 'Pause recording';
 });

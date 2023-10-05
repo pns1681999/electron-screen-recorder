@@ -79,13 +79,13 @@ function sketch(event: MouseEvent) {
   if (!paint) return;
   ctx.beginPath();
 
-  ctx.lineWidth = 5;
+  ctx.lineWidth = 4;
 
   // Sets the end of the lines drawn
   // to a round shape.
   ctx.lineCap = 'round';
 
-  ctx.strokeStyle = 'green';
+  ctx.strokeStyle = 'red';
 
   // The cursor to start drawing
   // moves to this coordinate
