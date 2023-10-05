@@ -22,8 +22,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('resume-record', callback),
 
   getSources: async () => ipcRenderer.invoke('get-sources'),
-  selectSource: (sourceId: string) =>
-    ipcRenderer.invoke('select-source', sourceId),
+  selectSource: (source: any) => ipcRenderer.invoke('select-source', source),
   startRecording: () => {
     ipcRenderer.send('start-record');
   },

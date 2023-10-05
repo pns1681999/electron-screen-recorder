@@ -7,7 +7,7 @@ const btnRecordVideo = document.getElementById('btn-record');
 const $modalElement: HTMLElement = document.querySelector('#popup-modal');
 
 let modal: ModalInterface = null;
-let sourceId: string = null;
+let source: any = null;
 
 // close modal
 document.querySelector('.modal-close-button').addEventListener('click', () => {
@@ -17,7 +17,7 @@ document.querySelector('.modal-close-button').addEventListener('click', () => {
 const startRerecording = () => {
   modal.hide();
   console.log('start rerecording');
-  window.api.selectSource(sourceId);
+  window.api.selectSource(source);
 };
 
 const showSourceListModal = (sources: any[]) => {
@@ -31,13 +31,13 @@ const showSourceListModal = (sources: any[]) => {
     },
     onShow: () => {
       console.log('modal is shown');
-      sourceId = null;
+      source = null;
     },
   };
 
   // build modal content
   const listElement = document.getElementById('source-list');
-  const listItems = sources.map((source: any) => {
+  const listItems = sources.map((item: any) => {
     const listItem = document.createElement('div');
     listItem.classList.add(
       'flex',
@@ -49,12 +49,12 @@ const showSourceListModal = (sources: any[]) => {
       'font-bold'
     );
     listItem.innerHTML = `
-      <img src="${source.thumbnail}" alt="${source.name}" class="w-32 h-24 cursor-pointer hover:opacity-75 "/>
-      <div class="text-sm">${source.name}</div>
+      <img src="${item.thumbnail}" alt="${item.name}" class="w-32 h-24 cursor-pointer hover:opacity-75 "/>
+      <div class="text-sm">${item.name}</div>
     `;
 
     listItem.addEventListener('click', () => {
-      // send sourceId to actionWindow
+      // send source to actionWindow
       // set selected class
       listItem.classList.add('border-2', 'border-red-400');
       // remove selected class from other list items
@@ -64,8 +64,8 @@ const showSourceListModal = (sources: any[]) => {
           item.classList.remove('border-2', 'border-red-400');
         }
       });
-      sourceId = source.id;
-      if (sourceId) {
+      source = item;
+      if (source) {
         selectButton.addEventListener('click', startRerecording);
       }
     });

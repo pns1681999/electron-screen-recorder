@@ -89,24 +89,26 @@ const destroyRecordWindows = () => {
   windows.delete('actionWindow');
 };
 
-const handleSelectSource = async (event: any, sourceId: any) => {
+const handleSelectSource = async (event: any, source: any) => {
   const sourceWindow = windows.get('sourceWindow');
   // hide sourceWindow
   sourceWindow.hide();
 
+  console.log(source);
+
   // TODO: How to move all windows to the display where the sourceId is located
   const allDisplays = screen.getAllDisplays();
+  console.log(allDisplays);
   // we need to find the display where the sourceId is located
-  const display = allDisplays.find((display) => {
-    const id = `screen:${display.id}:0`;
-    return id === sourceId;
-  });
+  const display = allDisplays.find(
+    (display) => display.id.toString() === source.display_id.toString()
+  );
 
   // create windows for recording
   createWindows(display);
   // send event to renderers
   const actionWindow = windows.get('actionWindow');
-  actionWindow.webContents.send('sourceId-selected', sourceId);
+  actionWindow.webContents.send('sourceId-selected', source.id);
 };
 
 const handleGetSources = async () => {

@@ -12,7 +12,7 @@ export interface IElectronAPI {
   onResumeRecord: (callback: () => void) => void;
 
   getSources: () => Promise<any[]>;
-  selectSource: (sourceId: string) => Promise<void>;
+  selectSource: (source: any) => Promise<void>;
   startRecording: () => void;
   startAfterCountdown: () => void;
   stopRecording: () => void;
