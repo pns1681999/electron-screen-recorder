@@ -91,8 +91,8 @@ const analyzeVideo = async (
 
   const runWhisper = promisify(whisper);
   const rawResultList = await runWhisper({
-    language: 'en',
-    model: path.join(__dirname, 'assets/ggml-tiny.en.bin'),
+    language: 'auto',
+    model: path.join(__dirname, 'assets/ggml-tiny.bin'),
     fname_inp: filePath,
   });
 

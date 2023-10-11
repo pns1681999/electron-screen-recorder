@@ -20,7 +20,8 @@ const config: ForgeConfig = {
   },
   rebuildConfig: {},
   makers: [
-    new MakerZIP({}, ['darwin', 'win32']),
+    new MakerSquirrel({}),
+    new MakerZIP({}, ['darwin']),
     new MakerRpm({}),
     new MakerDeb({}),
     new MakerDMG({}),
