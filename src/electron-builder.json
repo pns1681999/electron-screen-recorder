@@ -1,0 +1,19 @@
+{
+  "appId": "com.example.yarikata",
+  "productName": "Yarikata",
+  "directories": {
+    "output": "dist"
+  },
+  "mac": {
+    "target": {
+      "target": "dmg",
+      "arch": ["x64", "arm64"]
+    }
+  },
+  "win": {
+    "target": "nsis"
+  },
+  "linux": {
+    "target": "AppImage"
+  }
+}

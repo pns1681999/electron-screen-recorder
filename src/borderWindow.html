@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Border</title>
+  </head>
+  <body class="h-screen border-blue-800 border-solid border-4 rounded-lg">
+    <div id="root"></div>
+    <!-- count down modal -->
+    <div
+      id="count-down-modal"
+      tabindex="-1"
+      class="fixed top-0 left-0 right-0 z-50 hidden w-full h-full p-4 overflow-x-hidden overflow-y-auto md:inset-0 bg-black bg-opacity-20"
+    >
+      <div class="relative w-full max-w-md max-h-full">
+        <div class="p-6">
+          <div class="flex flex-row justify-center">
+            <div class="flex flex-row justify-center items-center">
+              <div
+                class="text-8xl font-bold text-red-800"
+                id="count-down-number"
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/renderer/border-window/index.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Action</title>
+  </head>
+  <body>
+    <div id="root" class="h-screen flex flex-row flex-nowrap items-center">
+      <div class="flex-1">
+        <div class="text-center leading-none">
+          <span
+            id="btnStart"
+            class="icon-[ic--baseline-circle] text-[40px] text-red-500 cursor-pointer hover:text-red-600"
+          />
+        </div>
+        <div
+          id="startLabel"
+          class="text-center text-xs text-red-500 font-semibold leading-none"
+        >
+          Start recording
+        </div>
+      </div>
+
+      <div class="flex-1">
+        <div class="text-center leading-none">
+          <span
+            id="draw"
+            class="icon-[ic--baseline-draw] text-[40px] text-green-500 hover:text-green-600 cursor-pointer"
+          />
+        </div>
+        <div
+          id="drawLabel"
+          class="text-center text-xs text-green-500 font-semibold leading-none"
+        >
+          Start drawing
+        </div>
+      </div>
+      <div class="flex-1">
+        <div class="text-center leading-none">
+          <span
+            id="btnStop"
+            class="icon-[ic--round-open-in-new] text-[40px] text-blue-500 hover:text-blue-600 cursor-pointer"
+          />
+        </div>
+        <div
+          class="text-center text-xs text-blue-500 font-semibold leading-none"
+        >
+          Finish recording
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/renderer/action-window/index.ts"></script>
+  </body>
+</html>
