@@ -19,4 +19,23 @@ export interface IElectronAPI {
   pauseRecording: () => void;
   resumeRecording: () => void;
   toggleRecording: () => void;
+
+  // * Analyze video
+  selectVideoToAnalyze: () => void;
+  onAnalyzeSuccess: (callback: (args: AnalyzeSuccessArgs) => void) => void;
+}
+
+export interface AnalyzeSuccessArgs {
+  resultList: WhisperResultItem[];
+  filePath: string;
+  inferenceTimeInMs: number;
+}
+
+export interface WhisperResultItem {
+  /** eg. 00:00:08,000  */
+  startTimeStr: string;
+  /** eg. 00:00:08,000  */
+  endTimeStr: string;
+
+  text: string;
 }

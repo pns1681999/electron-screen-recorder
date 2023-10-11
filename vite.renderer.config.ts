@@ -10,6 +10,7 @@ export default defineConfig({
         border_window: resolve(__dirname, 'borderWindow.html'),
         source_window: resolve(__dirname, 'sourceWindow.html'),
         action_window: resolve(__dirname, 'actionWindow.html'),
+        analyze_window: resolve(__dirname, 'analyzeWindow.html'),
       },
     },
   },

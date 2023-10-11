@@ -1,11 +1,14 @@
 import {
-  app,
   BrowserWindow,
-  ipcMain,
+  Menu,
+  app,
   desktopCapturer,
   dialog,
+  ipcMain,
   screen,
 } from 'electron';
+// import { unlink, writeFile } from 'fs';
+// const ffmpeg = require('fluent-ffmpeg');
 import { writeFile } from 'fs/promises';
 
 import {
@@ -14,6 +17,11 @@ import {
   DrawWindow,
   SourceWindow,
 } from './windows';
+
+import { handleSelectVideoToAnalyze } from './analyze-main';
+// TODO: Configure menu
+import customMenu from '../menus/custom-menu';
+Menu.setApplicationMenu(customMenu);
 
 // Command line
 // https://github.com/electron/electron/issues/19880#issuecomment-618222048
@@ -71,7 +79,7 @@ const toggleDrawWindow = () => {
   }
 };
 
-const createWindows = (display: Electron.Display) => {
+const createRecordingWindows = (display: Electron.Display) => {
   createBorderWindow(display);
   createActionWindow(display);
   createDrawWindow(display);
@@ -105,7 +113,7 @@ const handleSelectSource = async (event: any, source: any) => {
   );
 
   // create windows for recording
-  createWindows(display);
+  createRecordingWindows(display);
   // send event to renderers
   const actionWindow = windows.get('actionWindow');
   actionWindow.webContents.send('sourceId-selected', source.id);
@@ -152,8 +160,32 @@ const handleSave = async (event: any, buffer: any) => {
   }
 
   console.log('save video to', filePath);
-
   await writeFile(filePath, buffer);
+  // const inputFilePath = 'temp_input.webm';
+
+  // writeFile(inputFilePath, buffer, (err) => {
+  //   if (err) {
+  //     console.error('Error writing input file:', err);
+  //   }
+
+  //   ffmpeg()
+  //     .input(inputFilePath)
+  //     .inputFormat('webm')
+  //     .output(filePath)
+  //     .on('end', function () {
+  //       console.log('Conversion finished.');
+  //       // Remove the temporary input file
+  //       unlink(inputFilePath, (unlinkErr) => {
+  //         if (unlinkErr) {
+  //           console.error('Error deleting temporary input file:', unlinkErr);
+  //         }
+  //       });
+  //     })
+  //     .on('error', function (err: any) {
+  //       console.error('Error:', err);
+  //     })
+  //     .run();
+  // });
   console.log('video saved successfully!');
   return filePath;
 };
@@ -191,8 +223,14 @@ app.on('ready', () => {
   ipcMain.on('pause-record', handlePauseRecord);
   ipcMain.on('resume-record', handleResumeRecord);
   ipcMain.on('start-record-after-countdown', handleStartRecordAfterCountdown);
+
+  // * Analyze video
+  ipcMain.on('select-video-to-analyze', handleSelectVideoToAnalyze);
 });
 
+if (process.platform === 'darwin') {
+  global.isMac = true;
+}
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.

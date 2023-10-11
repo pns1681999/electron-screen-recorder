@@ -85,9 +85,7 @@ const showSourceListModal = (sources: any[]) => {
 };
 
 btnAnalyzeVideo.addEventListener('click', () => {
-  console.log('analyze video');
-  // not implemented yet
-  alert('Not implemented yet');
+  window.api.selectVideoToAnalyze();
 });
 
 btnRecordVideo.addEventListener('click', async () => {

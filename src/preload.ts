@@ -2,6 +2,7 @@
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 
 import { contextBridge, ipcRenderer } from 'electron';
+import { AnalyzeSuccessArgs, IElectronAPI } from './renderer';
 
 let mediaRecorder: MediaRecorder; // MediaRecorder instance to capture footage
 let recordedChunks: Blob[] = [];
@@ -60,10 +61,14 @@ contextBridge.exposeInMainWorld('api', {
     return mediaRecorder.state;
   },
 
-  onSourceWindowReady: (callback: () => void) => {
-    ipcRenderer.on('sourceId-selected', callback);
+  // * Analyze video
+  selectVideoToAnalyze: () => {
+    ipcRenderer.send('select-video-to-analyze');
   },
-});
+  onAnalyzeSuccess: (callback: (args: AnalyzeSuccessArgs) => void) => {
+    ipcRenderer.on('analyze-success', (_, args) => callback(args));
+  },
+} satisfies IElectronAPI);
 
 const handleDataAvailable = (e: BlobEvent) => {
   recordedChunks.push(e.data);
@@ -74,6 +79,8 @@ const handleStop = async () => {
   console.log('mediaRecorder stopped');
   const blob = new Blob(recordedChunks, {
     type: 'video/webm; codecs=vp9',
+    // export mp4
+    // type: 'video/mp4; codecs=h264',
   });
 
   const buffer = Buffer.from(await blob.arrayBuffer());
@@ -83,8 +90,12 @@ const handleStop = async () => {
   ipcRenderer.send('save-video', buffer);
 };
 
-const handleStream = (stream: MediaStream) => {
-  mediaRecorder = new MediaRecorder(stream);
+const handleStream = (videoStream: MediaStream, audioStream: MediaStream) => {
+  const [videoTrack] = videoStream.getVideoTracks();
+  const [audioTrack] = audioStream.getAudioTracks();
+  const combinedStream = new MediaStream([videoTrack, audioTrack]);
+
+  mediaRecorder = new MediaRecorder(combinedStream);
 
   mediaRecorder.ondataavailable = handleDataAvailable;
   mediaRecorder.onstop = handleStop;
@@ -96,17 +107,26 @@ const handleError = (e: Error) => {
 
 const handleSelectSource = async (sourceId: string) => {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
+    const videoStream = await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: {
         mandatory: {
           chromeMediaSource: 'desktop',
           chromeMediaSourceId: sourceId,
         },
-      },
+      } as any, // Suppress lint error
     });
 
-    handleStream(stream);
+    const audioStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        sampleRate: 16000,
+        channelCount: 1,
+        sampleSize: 16,
+      },
+      video: false,
+    });
+
+    handleStream(videoStream, audioStream);
   } catch (error) {
     handleError(error);
   }

@@ -3,16 +3,27 @@ import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { MakerDeb } from '@electron-forge/maker-deb';
 import { MakerRpm } from '@electron-forge/maker-rpm';
+import { MakerDMG } from '@electron-forge/maker-dmg';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 
 const config: ForgeConfig = {
-  packagerConfig: {},
+  packagerConfig: {
+    osxSign: {
+      type: 'development',
+    },
+    osxNotarize: {
+      tool: 'notarytool',
+      appleId: process.env.APPLE_ID || '',
+      appleIdPassword: process.env.APPLE_PASSWORD || '',
+      teamId: process.env.APPLE_TEAM_ID || '',
+    },
+  },
   rebuildConfig: {},
   makers: [
-    new MakerSquirrel({}),
-    new MakerZIP({}, ['darwin']),
+    new MakerZIP({}, ['darwin', 'win32']),
     new MakerRpm({}),
     new MakerDeb({}),
+    new MakerDMG({}),
   ],
   plugins: [
     new VitePlugin({
@@ -27,7 +38,7 @@ const config: ForgeConfig = {
         {
           entry: 'src/preload.ts',
           config: 'vite.preload.config.ts',
-        }
+        },
       ],
       renderer: [
         {
