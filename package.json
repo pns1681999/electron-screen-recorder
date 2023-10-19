@@ -54,6 +54,8 @@
     "electron-is-dev": "^2.0.0",
     "electron-progressbar": "^2.0.1",
     "electron-squirrel-startup": "^1.0.0",
+    "extendable-media-recorder": "^9.1.2",
+    "extendable-media-recorder-wav-encoder": "^7.0.98",
     "ffmpeg-static-electron": "^2.0.3",
     "ffprobe-static-electron": "^2.0.2",
     "flowbite": "^1.8.1",

@@ -11,6 +11,10 @@ export interface IElectronAPI {
   onPauseRecord: (callback: () => void) => void;
   onResumeRecord: (callback: () => void) => void;
 
+  onVoiceCommandDetected: (
+    callback: (voiceCommand: VoiceCommand) => void
+  ) => void;
+
   getSources: () => Promise<any[]>;
   selectSource: (source: any) => Promise<void>;
   startRecording: () => void;

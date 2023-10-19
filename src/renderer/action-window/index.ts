@@ -26,6 +26,7 @@
  * ```
  */
 
+import { VoiceCommand } from 'src/utils/edge-impulse-post-processor';
 import './index.css';
 
 let isDrawing = false;
@@ -45,7 +46,9 @@ toggleDrawBtn.addEventListener('click', () => {
   window.api.toggleDraw();
 });
 
-let state = 'ready';
+type RecordingState = 'idle' | 'ready' | 'recording' | 'paused';
+let state: RecordingState = 'ready';
+
 const startButton = document.getElementById('btnStart');
 const startLabel = document.getElementById('startLabel');
 const stopButton = document.getElementById('btnStop');
@@ -54,20 +57,10 @@ startButton.addEventListener('click', () => {
   console.log('state', state);
   if (state === 'idle') {
     console.log('select source');
-  } else if (state === 'ready') {
-    window.api.startRecording();
+  } else if (state === 'ready' || state === 'paused') {
+    startOrResumeRecording();
   } else if (state === 'recording') {
-    window.api.pauseRecording();
-    state = 'paused';
-    startButton.classList.remove('icon-[ic--baseline-pause-circle]');
-    startButton.classList.add('icon-[ic--baseline-play-circle]');
-    startLabel.innerHTML = 'Resume recording';
-  } else if (state === 'paused') {
-    window.api.resumeRecording();
-    state = 'recording';
-    startButton.classList.remove('icon-[ic--baseline-play-circle]');
-    startButton.classList.add('icon-[ic--baseline-pause-circle]');
-    startLabel.innerHTML = 'Pause recording';
+    pauseRecording();
   }
 });
 stopButton.addEventListener('click', () => {
@@ -77,9 +70,48 @@ stopButton.addEventListener('click', () => {
   }
 });
 
+const startOrResumeRecording = () => {
+  if (state === 'ready') {
+    window.api.startRecording();
+  } else if (state === 'paused') {
+    window.api.resumeRecording();
+    state = 'recording';
+    startButton.classList.remove('icon-[ic--baseline-play-circle]');
+    startButton.classList.add('icon-[ic--baseline-pause-circle]');
+    startLabel.innerHTML = 'Pause recording';
+  }
+};
+
+const pauseRecording = () => {
+  if (state === 'recording') {
+    window.api.pauseRecording();
+    state = 'paused';
+    startButton.classList.remove('icon-[ic--baseline-pause-circle]');
+    startButton.classList.add('icon-[ic--baseline-play-circle]');
+    startLabel.innerHTML = 'Resume recording';
+  }
+};
+
 window.api.onStartRecordAfterCountdown(() => {
   state = 'recording';
   startButton.classList.remove('icon-[ic--baseline-circle]');
   startButton.classList.add('icon-[ic--baseline-pause-circle]');
   startLabel.innerHTML = 'Pause recording';
+});
+
+window.api.onVoiceCommandDetected((voiceCommand: VoiceCommand) => {
+  switch (voiceCommand) {
+    case 'yes': {
+      if (state === 'ready' || state === 'paused') {
+        startOrResumeRecording();
+      }
+      break;
+    }
+    case 'no': {
+      if (state === 'recording') {
+        pauseRecording();
+      }
+      break;
+    }
+  }
 });

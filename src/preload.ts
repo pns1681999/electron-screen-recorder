@@ -4,8 +4,18 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { AnalyzeSuccessArgs, IElectronAPI } from './renderer';
 
+import {
+  MediaRecorder as ExtendableMediaRecorder,
+  IMediaRecorder,
+  register as registerEncoder,
+} from 'extendable-media-recorder';
+import { connect as connectWavEncoder } from 'extendable-media-recorder-wav-encoder';
+import { VoiceCommand } from './utils/edge-impulse-post-processor';
+
 let mediaRecorder: MediaRecorder; // MediaRecorder instance to capture footage
 let recordedChunks: Blob[] = [];
+
+let voiceCommandRecorder: IMediaRecorder;
 
 contextBridge.exposeInMainWorld('api', {
   toggleDraw: () => ipcRenderer.send('toggle-draw'),
@@ -22,12 +32,19 @@ contextBridge.exposeInMainWorld('api', {
   onResumeRecord: (callback: () => void) =>
     ipcRenderer.on('resume-record', callback),
 
+  onVoiceCommandDetected: (callback: (voiceCommand: VoiceCommand) => void) =>
+    ipcRenderer.on('voice-command-detected', (_, voiceCommand) =>
+      callback(voiceCommand)
+    ),
+
   getSources: async () => ipcRenderer.invoke('get-sources'),
   selectSource: (source: any) => ipcRenderer.invoke('select-source', source),
   startRecording: () => {
     ipcRenderer.send('start-record');
   },
   stopRecording: () => {
+    voiceCommandRecorder.stop();
+
     if (mediaRecorder.state === 'inactive') {
       ipcRenderer.send('exit-record');
     } else {
@@ -82,7 +99,7 @@ contextBridge.exposeInMainWorld('api', {
   onMergingVideo: (callback: (args: any) => void) => {
     ipcRenderer.on('merging-video', (_, args) => callback(args));
   },
-});
+} satisfies IElectronAPI);
 
 const handleDataAvailable = (e: BlobEvent) => {
   recordedChunks.push(e.data);
@@ -99,6 +116,8 @@ const handleStop = async () => {
   console.log('buffer', buffer);
   mediaRecorder = null;
   recordedChunks = [];
+
+  voiceCommandRecorder = null;
 
   // TODO enable convert to mp4
   const convertToMp4 = true;
@@ -119,6 +138,41 @@ const handleStream = (videoStream: MediaStream, audioStream: MediaStream) => {
 
   mediaRecorder.ondataavailable = handleDataAvailable;
   mediaRecorder.onstop = handleStop;
+
+  initVoiceCommandRecorder(audioStream);
+};
+
+const initVoiceCommandRecorder = async (audioStream: MediaStream) => {
+  // Required to use `{ mimeType: 'audio/wav' }`
+  await registerEncoder(await connectWavEncoder());
+
+  // Downsample the audio stream to 16kHz sample rate - 1 channel PCM
+  // which is required for EdgeImpulse to classify
+
+  const audioContext = new AudioContext({ sampleRate: 16000 });
+
+  const mediaStreamAudioSourceNode =
+    audioContext.createMediaStreamSource(audioStream);
+
+  const mediaStreamAudioDestinationNode =
+    audioContext.createMediaStreamDestination();
+  mediaStreamAudioDestinationNode.channelCount = 1;
+
+  mediaStreamAudioSourceNode.connect(mediaStreamAudioDestinationNode);
+
+  voiceCommandRecorder = new ExtendableMediaRecorder(
+    mediaStreamAudioDestinationNode.stream,
+    // Wav PCM is required for EdgeImpulse to process
+    { mimeType: 'audio/wav' }
+  );
+
+  voiceCommandRecorder.ondataavailable = async (blobEvent) => {
+    const rawData = new Int16Array(await blobEvent.data.arrayBuffer());
+    ipcRenderer.send('classify-audio', rawData);
+  };
+
+  // ! EdgeImpulse post-process configs should be adjusted based on this timeslice value
+  voiceCommandRecorder.start(100);
 };
 
 const handleError = (e: Error) => {

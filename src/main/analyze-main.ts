@@ -28,26 +28,7 @@ export const handleSelectVideoToAnalyze = async () => {
     filters: [
       {
         name: 'Videos & Audios',
-        extensions: [
-          // Video exts
-          'mp4',
-          'avi',
-          'mkv',
-          'mov',
-          'wmv',
-          'flv',
-          'webm',
-          '3gp',
-          'mpeg',
-          // Audio exts
-          'mp3',
-          'wav',
-          'aac',
-          'flac',
-          'ogg',
-          'wma',
-          'm4a',
-        ],
+        extensions: [...videoExts, ...audioExts],
       },
     ],
   });
@@ -106,7 +87,7 @@ const analyzeVideo = async (
 // [startTime, endTime, transcript]
 type WhisperRawResult = [string, string, string];
 
-/** Convert to 16kHz wav audio file to run on whisper */
+/** Convert to 16kHz pcm wav audio file to run on whisper */
 const convertToStandardWav = (inputFilePath: string): Promise<string> => {
   const tempDirPath = app.getPath('temp');
   const outputFilePath = path.join(tempDirPath, 'temp-audio.wav');
@@ -125,3 +106,16 @@ const convertToStandardWav = (inputFilePath: string): Promise<string> => {
       .run();
   });
 };
+
+const videoExts = [
+  'mp4',
+  'avi',
+  'mkv',
+  'mov',
+  'wmv',
+  'flv',
+  'webm',
+  '3gp',
+  'mpeg',
+];
+const audioExts = ['mp3', 'wav', 'aac', 'flac', 'ogg', 'wma', 'm4a'];

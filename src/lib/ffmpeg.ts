@@ -10,7 +10,7 @@ import { platform, arch, isWindows, isMac, isLinux } from './util';
 let customFfPath = '';
 
 // Note that this does not work on MAS because of sandbox restrictions
-function setCustomFfPath(path) {
+function setCustomFfPath(path: any) {
   customFfPath = path;
 }
 // const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
@@ -27,7 +27,13 @@ function getFfPath(cmd: string) {
     return join(...components);
   }
 
-  return join(process.resourcesPath, exeName);
+  return join(
+    process.resourcesPath,
+    'app/public/ffmpeg',
+    `${platform}-${arch}`,
+    ...(isWindows ? ['lib'] : []),
+    exeName
+  );
 }
 
 const getFfprobePath = () => getFfPath('ffprobe');
@@ -117,14 +123,16 @@ const createReadableVideoBuffer = (videoBuffer: any) => {
 const createTaskConvertVideoFile = (videoBuffer: any, filePath: any) => {
   const ffmpegCmd = ffmpeg();
   const readableVideoBuffer = createReadableVideoBuffer(videoBuffer);
-  return ffmpegCmd
-    .input(readableVideoBuffer)
-    .output(filePath)
-    // set audio codec h 264
-    .videoCodec('libx264')
-    .format('mp4')
-    .audioQuality(1)
-    .audioFilters('volume=1.0');
+  return (
+    ffmpegCmd
+      .input(readableVideoBuffer)
+      .output(filePath)
+      // set audio codec h 264
+      .videoCodec('libx264')
+      .format('mp4')
+      .audioQuality(1)
+      .audioFilters('volume=1.0')
+  );
 };
 
 export {

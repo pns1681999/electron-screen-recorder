@@ -23,6 +23,18 @@ export default defineConfig({
           src: normalizePath(resolve(__dirname, 'src/assets')),
           dest: './',
         },
+        // edge-impulse-standalone.js requires edge-impulse-standalone.wasm to be
+        // in the root dir
+        // TODO find a better way to fix this
+        {
+          src: normalizePath(
+            resolve(
+              __dirname,
+              'src/packages/edge-impulse/edge-impulse-standalone.wasm'
+            )
+          ),
+          dest: './',
+        },
       ],
     }),
   ],

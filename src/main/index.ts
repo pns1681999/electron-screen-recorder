@@ -1,5 +1,6 @@
 import {
   BrowserWindow,
+  IpcMainEvent,
   Menu,
   app,
   desktopCapturer,
@@ -9,7 +10,9 @@ import {
 } from 'electron';
 // import { unlink, writeFile } from 'fs';
 // const ffmpeg = require('fluent-ffmpeg');
-import { writeFile, readFile } from 'fs/promises';
+import { readFile, writeFile } from 'fs/promises';
+
+import { EdgeImpulseClassifier } from '../packages/edge-impulse';
 
 import path from 'path';
 
@@ -22,12 +25,14 @@ import {
 
 import { handleSelectVideoToAnalyze } from './analyze-main';
 // TODO: Configure menu
-import customMenu from '../menus/custom-menu';
 import {
   buildMergeVideoCommand,
   createTaskConvertVideoFile,
   getVideoInfo,
 } from '../lib/ffmpeg';
+import customMenu from '../menus/custom-menu';
+import { EdgeImpulsePostProcessor } from '../utils/edge-impulse-post-processor';
+
 Menu.setApplicationMenu(customMenu);
 
 // Command line
@@ -249,6 +254,26 @@ const handleStartRecordAfterCountdown = () => {
   actionWindow.webContents.send('start-record-after-countdown');
 };
 
+const edgeInpulseClassifier = new EdgeImpulseClassifier();
+edgeInpulseClassifier.init();
+
+const edgeImpulsePostProcessor = new EdgeImpulsePostProcessor();
+
+const handleAudioClassifier = (_: IpcMainEvent, rawData: Int16Array) => {
+  const { results } = edgeInpulseClassifier.classifyContinuous(rawData) as {
+    anomaly: any;
+    results: { label: string; value: number }[];
+  };
+
+  const voiceCommand =
+    edgeImpulsePostProcessor.processResultsContinuousSync(results);
+
+  if (voiceCommand != null) {
+    const actionWindow = windows.get('actionWindow');
+    actionWindow.webContents.send('voice-command-detected', voiceCommand);
+  }
+};
+
 const handleSelectVideoToMerge = async () => {
   // show dialog to select video
   console.log('select video to merge');
@@ -384,6 +409,7 @@ app.on('ready', () => {
   ipcMain.on('pause-record', handlePauseRecord);
   ipcMain.on('resume-record', handleResumeRecord);
   ipcMain.on('start-record-after-countdown', handleStartRecordAfterCountdown);
+  ipcMain.on('classify-audio', handleAudioClassifier);
 
   // Merge video
   ipcMain.handle('select-video-to-merge', handleSelectVideoToMerge);
@@ -395,7 +421,7 @@ app.on('ready', () => {
 });
 
 if (process.platform === 'darwin') {
-  global.isMac = true;
+  (global as any).isMac = true;
 }
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
