@@ -19,10 +19,17 @@ export interface IElectronAPI {
   pauseRecording: () => void;
   resumeRecording: () => void;
   toggleRecording: () => void;
+  onSaveVideo: (callback: (args: any) => void) => void;
 
   // * Analyze video
   selectVideoToAnalyze: () => void;
   onAnalyzeSuccess: (callback: (args: AnalyzeSuccessArgs) => void) => void;
+
+  // * Merge video
+  selectVideoToMerge: () => Promise<any>;
+  selectPathToSaveFile: () => Promise<any>;
+  mergeVideos: (videoPaths: string[], filePath: string) => Promise<void>;
+  onMergingVideo: (callback: (args: any) => void) => void;
 }
 
 export interface AnalyzeSuccessArgs {

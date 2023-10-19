@@ -36,8 +36,13 @@ window.api.onAnalyzeSuccess(({ filePath, resultList, inferenceTimeInMs }) => {
     itemEl.classList.add('flex', 'items-center', 'py-2', 'border-b-2');
 
     const timeEl = document.createElement('div');
-    timeEl.classList.add('w-52', 'text-gray-800', 'text-xs');
-    timeEl.textContent = `${result.startTimeStr} - ${result.endTimeStr}`;
+    timeEl.classList.add('w-36', 'text-gray-800', 'text-xs');
+
+    // Cut off the milliseconds
+    const startTime = result.startTimeStr.split(',')[0];
+    const endTime = result.endTimeStr.split(',')[0];
+
+    timeEl.textContent = `${startTime} - ${endTime}`;
 
     const transcriptTextEl = document.createElement('div');
     transcriptTextEl.classList.add('flex-1');

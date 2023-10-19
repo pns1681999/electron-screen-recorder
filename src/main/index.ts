@@ -9,7 +9,9 @@ import {
 } from 'electron';
 // import { unlink, writeFile } from 'fs';
 // const ffmpeg = require('fluent-ffmpeg');
-import { writeFile } from 'fs/promises';
+import { writeFile, readFile } from 'fs/promises';
+
+import path from 'path';
 
 import {
   ActionWindow,
@@ -21,6 +23,11 @@ import {
 import { handleSelectVideoToAnalyze } from './analyze-main';
 // TODO: Configure menu
 import customMenu from '../menus/custom-menu';
+import {
+  buildMergeVideoCommand,
+  createTaskConvertVideoFile,
+  getVideoInfo,
+} from '../lib/ffmpeg';
 Menu.setApplicationMenu(customMenu);
 
 // Command line
@@ -54,6 +61,15 @@ const createDrawWindow = (display: Electron.Display) => {
 };
 
 const createMainWindow = () => {
+  const sourceWindow = windows.get('sourceWindow');
+  const actionWindow = windows.get('actionWindow');
+  if (actionWindow) {
+    return;
+  }
+  if (sourceWindow) {
+    sourceWindow.show();
+    return;
+  }
   const window = new SourceWindow();
   window.setParentWindow(windows.get('borderWindow'));
   windows.set('sourceWindow', window);
@@ -68,10 +84,10 @@ const toggleDrawWindow = () => {
     if (drawWindow.isVisible()) {
       borderWindow.setParentWindow(null);
       actionWindow.setParentWindow(null);
+      drawWindow.webContents.send('clear-canvas');
       drawWindow.hide();
       actionWindow.setParentWindow(borderWindow);
       //Send message to drawWindow to clear canvas
-      drawWindow.webContents.send('clear-canvas');
     } else {
       drawWindow.show();
       borderWindow.setParentWindow(drawWindow);
@@ -147,11 +163,11 @@ const exitRecord = () => {
   destroyRecordWindows();
 };
 
-const handleSave = async (event: any, buffer: any) => {
+const handleSave = async (event: any, buffer: any, convert = true) => {
   exitRecord();
   const { canceled, filePath } = await dialog.showSaveDialog({
     buttonLabel: 'Save video',
-    defaultPath: `vid-${Date.now()}.webm`,
+    defaultPath: `vid-${Date.now()}.${convert ? 'mp4' : 'webm'}`,
   });
 
   if (canceled) {
@@ -160,33 +176,58 @@ const handleSave = async (event: any, buffer: any) => {
   }
 
   console.log('save video to', filePath);
-  await writeFile(filePath, buffer);
-  // const inputFilePath = 'temp_input.webm';
+  if (convert) {
+    const sendMessageSourceWindow = (message: any) => {
+      const sourceWindow = windows.get('sourceWindow');
+      sourceWindow.webContents.send('save-video-status', message);
+    };
 
-  // writeFile(inputFilePath, buffer, (err) => {
-  //   if (err) {
-  //     console.error('Error writing input file:', err);
-  //   }
+    const ffmpegTask = createTaskConvertVideoFile(buffer, filePath);
+    await ffmpegTask
+      .on('start', (commandLine: string) => {
+        console.log('👉 Waiting:::', commandLine);
+        sendMessageSourceWindow({
+          label: 'Waiting',
+          value: 0,
+          message: 'Waiting...',
+          commandLine,
+        });
+      })
+      .on('progress', (progress: Record<string, any>) => {
+        console.log('👉 Progress:::', progress);
+        // convert timemark to seconds
+        sendMessageSourceWindow({
+          label: 'Progress',
+          value: progress,
+          message: 'Saving...',
+          commandLine: '',
+        });
+      })
+      .on('error', (err: Record<string, any>) => {
+        console.log('👉 ERROR:::', err.message);
+        sendMessageSourceWindow({
+          label: 'Error',
+          value: 0,
+          message: err.message,
+          commandLine: '',
+        });
+      })
+      .on('end', () => {
+        // progressBar.value = 100;
+        console.log('👉 DONE !!!!');
+        sendMessageSourceWindow({
+          label: 'Success',
+          value: 100,
+          message: 'Success',
+          commandLine: '',
+        });
+      })
+      .run();
+  } else {
+    console.log('write file');
+    writeFile(filePath, buffer);
+  }
 
-  //   ffmpeg()
-  //     .input(inputFilePath)
-  //     .inputFormat('webm')
-  //     .output(filePath)
-  //     .on('end', function () {
-  //       console.log('Conversion finished.');
-  //       // Remove the temporary input file
-  //       unlink(inputFilePath, (unlinkErr) => {
-  //         if (unlinkErr) {
-  //           console.error('Error deleting temporary input file:', unlinkErr);
-  //         }
-  //       });
-  //     })
-  //     .on('error', function (err: any) {
-  //       console.error('Error:', err);
-  //     })
-  //     .run();
-  // });
-  console.log('video saved successfully!');
   return filePath;
 };
 
@@ -208,6 +249,126 @@ const handleStartRecordAfterCountdown = () => {
   actionWindow.webContents.send('start-record-after-countdown');
 };
 
+const handleSelectVideoToMerge = async () => {
+  // show dialog to select video
+  console.log('select video to merge');
+  const dialogFileType = { name: 'Videos', extensions: ['mp4', 'mov', 'webm'] };
+  const response = await dialog.showOpenDialog({
+    properties: ['openFile', 'multiSelections'],
+    message: 'Select Video File to load',
+    filters: [dialogFileType],
+  });
+
+  if (response.canceled || response.filePaths.length <= 0) {
+    return [];
+  }
+
+  const selectedFilePaths = response.filePaths;
+  const promises = selectedFilePaths.map(async (filePath) => {
+    const thumbnailPath = path.join(__dirname, 'assets/images/video.png');
+    // read file and build thumbnail base64
+    const thumbnail = await readFile(thumbnailPath, { encoding: 'base64' });
+    return {
+      filePath,
+      name: path.basename(filePath),
+      // build thumbnail base64
+      thumbnail: `data:image/png;base64,${thumbnail}`,
+    };
+  });
+
+  const results = await Promise.all(promises);
+  return results;
+};
+
+const handleSelectPathToSaveFile = async () => {
+  const { canceled, filePath } = await dialog.showSaveDialog({
+    buttonLabel: 'Save video',
+    defaultPath: `merge-vid-${Date.now()}.mp4`,
+  });
+
+  return {
+    canceled,
+    filePath,
+  };
+};
+
+const handleMergeVideos = async (
+  event: any,
+  videoPaths: string[],
+  filePath: string
+) => {
+  console.log('merge videos', videoPaths, filePath);
+
+  // get total duration of videos
+  const promises = videoPaths.map((videoPath) => getVideoInfo(videoPath));
+  const videoInfos = await Promise.all(promises);
+  console.log('video infos', videoInfos);
+  const totalDuration = videoInfos.reduce((acc, videoInfo: any) => {
+    // huhm, in case webm. It could not detect duration
+    const duration =
+      videoInfo.format.duration === 'N/A' ? 0 : videoInfo.format.duration;
+    return acc + duration;
+  }, 0);
+
+  console.log('total duration', totalDuration);
+
+  const sourceWindow = windows.get('sourceWindow');
+  const ffmpeg = buildMergeVideoCommand({
+    sources: videoPaths,
+    filePath,
+    fileType: 'mp4',
+  });
+  ffmpeg
+    .save(filePath)
+    .on('start', (commandLine: string) => {
+      console.log('👉 Waiting:::', commandLine);
+      sourceWindow.webContents.send('merging-video', {
+        label: 'Waiting',
+        value: 0,
+        message: 'Waiting...',
+        commandLine,
+        totalDuration,
+      });
+    })
+    .on('progress', (progress: Record<string, any>) => {
+      console.log('👉 Progress:::', progress);
+      const timemark = progress.timemark;
+      // convert timemark to seconds
+      const timeParts = timemark.split(':');
+      const hours = parseInt(timeParts[0]);
+      const minutes = parseInt(timeParts[1]);
+      const seconds = parseInt(timeParts[2]);
+      const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+      sourceWindow.webContents.send('merging-video', {
+        label: 'Progress',
+        value: totalSeconds,
+        message: 'Merging...',
+        commandLine: '',
+        totalDuration,
+      });
+    })
+    .on('error', (err: Record<string, any>) => {
+      console.log('👉 ERROR:::', err.message);
+      sourceWindow.webContents.send('merging-video', {
+        label: 'Error',
+        value: 0,
+        message: err.message,
+        commandLine: '',
+      });
+    })
+    .on('end', () => {
+      // progressBar.value = 100;
+      console.log('👉 DONE !!!!');
+      sourceWindow.webContents.send('merging-video', {
+        label: 'Success',
+        value: 100,
+        message: 'Success',
+        commandLine: '',
+        filePath,
+      });
+    });
+};
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -216,13 +377,18 @@ app.on('ready', () => {
 
   ipcMain.handle('get-sources', handleGetSources);
   ipcMain.handle('select-source', handleSelectSource);
-  ipcMain.on('save-video', handleSave);
+  ipcMain.handle('save-video', handleSave);
   ipcMain.on('exit-record', exitRecord);
   ipcMain.on('toggle-draw', toggleDrawWindow);
   ipcMain.on('start-record', handleStartRecord);
   ipcMain.on('pause-record', handlePauseRecord);
   ipcMain.on('resume-record', handleResumeRecord);
   ipcMain.on('start-record-after-countdown', handleStartRecordAfterCountdown);
+
+  // Merge video
+  ipcMain.handle('select-video-to-merge', handleSelectVideoToMerge);
+  ipcMain.handle('merge-select-path-to-save-file', handleSelectPathToSaveFile);
+  ipcMain.handle('merge-videos', handleMergeVideos);
 
   // * Analyze video
   ipcMain.on('select-video-to-analyze', handleSelectVideoToAnalyze);
@@ -235,6 +401,7 @@ if (process.platform === 'darwin') {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
+  windows.clear();
   if (process.platform !== 'darwin') {
     app.quit();
   }

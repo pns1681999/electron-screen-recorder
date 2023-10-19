@@ -61,6 +61,10 @@ contextBridge.exposeInMainWorld('api', {
     return mediaRecorder.state;
   },
 
+  onSaveVideo: (callback: (args: any) => void) => {
+    ipcRenderer.on('save-video-status', (_, args) => callback(args));
+  },
+
   // * Analyze video
   selectVideoToAnalyze: () => {
     ipcRenderer.send('select-video-to-analyze');
@@ -68,7 +72,17 @@ contextBridge.exposeInMainWorld('api', {
   onAnalyzeSuccess: (callback: (args: AnalyzeSuccessArgs) => void) => {
     ipcRenderer.on('analyze-success', (_, args) => callback(args));
   },
-} satisfies IElectronAPI);
+
+  // * Merge video
+  selectVideoToMerge: () => ipcRenderer.invoke('select-video-to-merge'),
+  selectPathToSaveFile: () =>
+    ipcRenderer.invoke('merge-select-path-to-save-file'),
+  mergeVideos: (videoPaths: string[], filePath: string) =>
+    ipcRenderer.invoke('merge-videos', videoPaths, filePath),
+  onMergingVideo: (callback: (args: any) => void) => {
+    ipcRenderer.on('merging-video', (_, args) => callback(args));
+  },
+});
 
 const handleDataAvailable = (e: BlobEvent) => {
   recordedChunks.push(e.data);
@@ -79,15 +93,18 @@ const handleStop = async () => {
   console.log('mediaRecorder stopped');
   const blob = new Blob(recordedChunks, {
     type: 'video/webm; codecs=vp9',
-    // export mp4
-    // type: 'video/mp4; codecs=h264',
   });
 
   const buffer = Buffer.from(await blob.arrayBuffer());
   console.log('buffer', buffer);
   mediaRecorder = null;
   recordedChunks = [];
-  ipcRenderer.send('save-video', buffer);
+
+  // TODO enable convert to mp4
+  const convertToMp4 = true;
+
+  const res = await ipcRenderer.invoke('save-video', buffer, convertToMp4);
+  console.log('result:', res);
 };
 
 const handleStream = (videoStream: MediaStream, audioStream: MediaStream) => {
@@ -95,7 +112,10 @@ const handleStream = (videoStream: MediaStream, audioStream: MediaStream) => {
   const [audioTrack] = audioStream.getAudioTracks();
   const combinedStream = new MediaStream([videoTrack, audioTrack]);
 
-  mediaRecorder = new MediaRecorder(combinedStream);
+  mediaRecorder = new MediaRecorder(combinedStream, {
+    // https://www.webrtc-experiment.com/RecordRTC/simple-demos/isTypeSupported.html
+    mimeType: 'video/webm; codecs=vp9',
+  });
 
   mediaRecorder.ondataavailable = handleDataAvailable;
   mediaRecorder.onstop = handleStop;

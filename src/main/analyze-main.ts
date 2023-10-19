@@ -1,10 +1,9 @@
 import { app, dialog } from 'electron';
 import path from 'path';
+import { performance } from 'perf_hooks';
+import { WhisperResultItem } from 'src/renderer';
 import { promisify } from 'util';
 import { AnalyzeWindow } from './windows/analyze-window';
-import { AnalyzeSuccessArgs, WhisperResultItem } from 'src/renderer';
-
-import { performance } from 'perf_hooks';
 
 // * Import whisper
 const whisperAddonSubPath =
@@ -78,7 +77,7 @@ export const handleSelectVideoToAnalyze = async () => {
     filePath: inputFilePath,
     resultList: whisperResultList,
     inferenceTimeInMs,
-  } satisfies AnalyzeSuccessArgs);
+  });
 };
 
 const analyzeVideo = async (
