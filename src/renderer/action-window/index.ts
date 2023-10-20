@@ -101,13 +101,13 @@ window.api.onStartRecordAfterCountdown(() => {
 
 window.api.onVoiceCommandDetected((voiceCommand: VoiceCommand) => {
   switch (voiceCommand) {
-    case 'yes': {
+    case 'start': {
       if (state === 'ready' || state === 'paused') {
         startOrResumeRecording();
       }
       break;
     }
-    case 'no': {
+    case 'stop': {
       if (state === 'recording') {
         pauseRecording();
       }

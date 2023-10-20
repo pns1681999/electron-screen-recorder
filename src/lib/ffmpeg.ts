@@ -31,7 +31,6 @@ function getFfPath(cmd: string) {
     process.resourcesPath,
     'app/public/ffmpeg',
     `${platform}-${arch}`,
-    ...(isWindows ? ['lib'] : []),
     exeName
   );
 }

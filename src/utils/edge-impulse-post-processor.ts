@@ -1,4 +1,4 @@
-export const voiceCommandList = ['yes', 'no'] as const;
+export const voiceCommandList = ['start', 'stop'] as const;
 export type VoiceCommand = (typeof voiceCommandList)[number];
 
 export class EdgeImpulsePostProcessor {
@@ -21,15 +21,17 @@ export class EdgeImpulsePostProcessor {
     // voiceCommandList
     let detectedResultListToAdd: DetectedResult[] = rawResults
       .filter(
-        (rawResult): rawResult is { label: VoiceCommand; value: number } =>
+        (rawResult) =>
           rawResult.value > EdgeImpulseConfigs.scoreThreshold &&
-          voiceCommandList.includes(rawResult.label as VoiceCommand)
+          EdgeImpulseConfigs.voiceCommandByLabel[rawResult.label] != null
       )
-      .map((rawResult) => ({
-        detectedAt: new Date(),
-        label: rawResult.label,
-        score: rawResult.value,
-      }));
+      .map(
+        (rawResult): DetectedResult => ({
+          detectedAt: new Date(),
+          voiceCommand: EdgeImpulseConfigs.voiceCommandByLabel[rawResult.label],
+          score: rawResult.value,
+        })
+      );
 
     this.currentDetectedResultList.push(...detectedResultListToAdd);
 
@@ -47,14 +49,14 @@ export class EdgeImpulsePostProcessor {
 
     // From the recent results, find the voice command that appear enough to be
     // considered as detected
-    const foundVoiceCommand = voiceCommandList.find((voiceCommandLabel) => {
+    const foundVoiceCommand = voiceCommandList.find((voiceCommand) => {
       const recentVoiceCommandCount = recentDetectedResultList.filter(
-        (detectedResult) => detectedResult.label == voiceCommandLabel
+        (detectedResult) => detectedResult.voiceCommand === voiceCommand
       ).length;
 
       return (
         recentVoiceCommandCount >=
-        EdgeImpulseConfigs.resultCountThresholdByVoiceCommand[voiceCommandLabel]
+        EdgeImpulseConfigs.resultCountThresholdByVoiceCommand[voiceCommand]
       );
     });
 
@@ -77,13 +79,18 @@ class EdgeImpulseConfigs {
   /** The count thresholds depend on recorder's timeslice value and must be adjusted
    * accordingly */
   static resultCountThresholdByVoiceCommand: Record<VoiceCommand, number> = {
-    yes: 3,
-    no: 3,
+    start: 3,
+    stop: 4,
+  };
+
+  static voiceCommandByLabel: Record<string, VoiceCommand> = {
+    ['スタート']: 'start',
+    ['撮影終了']: 'stop',
   };
 }
 
 interface DetectedResult {
   detectedAt: Date;
-  label: VoiceCommand;
+  voiceCommand: VoiceCommand;
   score: number;
 }
