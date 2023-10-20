@@ -71,7 +71,7 @@ export class EdgeImpulsePostProcessor {
 }
 
 class EdgeImpulseConfigs {
-  static scoreThreshold = 0.7;
+  static scoreThreshold = 0.9;
 
   /** This should be greater than the longest label's speech duration */
   static recentDurationInMsThreshold = 2000;
