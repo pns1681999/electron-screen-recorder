@@ -216,7 +216,7 @@ const showMergeVideoModal = (sources: any[]) => {
         total = totalDuration;
 
         // hide button merge
-        mergeButton.classList.add('hidden');
+        // mergeButton.classList.add('hidden');
 
         // set max value, value = 0
         progressBar.max = 100;

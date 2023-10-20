@@ -10,7 +10,7 @@ import { platform, arch, isWindows, isMac, isLinux } from './util';
 let customFfPath = '';
 
 // Note that this does not work on MAS because of sandbox restrictions
-function setCustomFfPath(path: any) {
+function setCustomFfPath(path) {
   customFfPath = path;
 }
 // const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
@@ -27,12 +27,7 @@ function getFfPath(cmd: string) {
     return join(...components);
   }
 
-  return join(
-    process.resourcesPath,
-    'app/public/ffmpeg',
-    `${platform}-${arch}`,
-    exeName
-  );
+  return join(process.resourcesPath, exeName);
 }
 
 const getFfprobePath = () => getFfPath('ffprobe');
@@ -67,12 +62,12 @@ const buildMergeVideoCommand = ({
   fileType: string;
   filePath: string;
 }) => {
-  const namingInput = (index: number) => `${index}`;
-  const namingOutput = (index: number) => `output${index}`;
+  const namingInput = (index: number) => `${index}:v`;
+  const namingOutput = (index: number) => `v${index}`;
 
   const configOption = {
     scale: 'hd',
-    ratio: '16:9',
+    ratio: '4:3',
     export: 'mp4',
     fileName: `${filePath}.${fileType}`,
   };
@@ -82,7 +77,7 @@ const buildMergeVideoCommand = ({
   sources.forEach((filePath: string) => {
     ffmpegCmd.input(filePath);
   });
-
+  // "[0:v]scale=-2:720,format=yuv420p[v];[0:a]amerge=inputs=$(ffprobe -loglevel error -select_streams a -show_entries stream=codec_type -of csv=p=0 input.mov | wc -l)[a]"
   ffmpegCmd
     .complexFilter([
       ...sources.map(
@@ -91,7 +86,7 @@ const buildMergeVideoCommand = ({
             configOption.scale
           )},${VIDEO_FILTER.pad(configOption.scale)},${VIDEO_FILTER.aspectRatio(
             configOption.ratio
-          )},${VIDEO_FILTER.format()}[${namingOutput(index)}]`
+          )},format=yuv420p[${namingOutput(index)}]`
       ),
       sources
         .map((_, index) => `[${namingOutput(index)}][${index}:a]`)
@@ -101,19 +96,22 @@ const buildMergeVideoCommand = ({
     .outputOptions([
       VIDEO_OPTIONS.mergeVideo,
       VIDEO_OPTIONS.mergeAudio,
-      VIDEO_OPTIONS.ab48,
-      VIDEO_OPTIONS.ac2,
-      VIDEO_OPTIONS.ar22050,
-      VIDEO_OPTIONS.shd,
-      VIDEO_OPTIONS.crf27,
-      VIDEO_OPTIONS.libx264,
-      VIDEO_OPTIONS.q4,
-      VIDEO_OPTIONS.fps30,
-      VIDEO_OPTIONS.threads2,
-      VIDEO_OPTIONS.ultrafast,
-      VIDEO_OPTIONS.shortest,
       // VIDEO_OPTIONS.animation,
+      // VIDEO_OPTIONS.libx264,
+      // VIDEO_OPTIONS.crf27,
+      // VIDEO_OPTIONS.ultrafast,
+      // VIDEO_OPTIONS.threads4,
       // VIDEO_OPTIONS.strict,
+      '-ab 48000',
+      '-ac 2',
+      '-ar 22050',
+      '-s 1280x720',
+      '-vcodec libx264',
+      '-crf 27',
+      '-q 4',
+      '-r 30',
+      '-preset ultrafast',
+      '-shortest',
       VIDEO_OPTIONS[configOption.export],
     ]);
 
@@ -129,16 +127,14 @@ const createReadableVideoBuffer = (videoBuffer: any) => {
 const createTaskConvertVideoFile = (videoBuffer: any, filePath: any) => {
   const ffmpegCmd = ffmpeg();
   const readableVideoBuffer = createReadableVideoBuffer(videoBuffer);
-  return (
-    ffmpegCmd
-      .input(readableVideoBuffer)
-      .output(filePath)
-      // set audio codec h 264
-      .videoCodec('libx264')
-      .format('mp4')
-      .audioQuality(1)
-      .audioFilters('volume=1.0')
-  );
+  return ffmpegCmd
+    .input(readableVideoBuffer)
+    .output(filePath)
+    // set audio codec h 264
+    .videoCodec('libx264')
+    .format('mp4')
+    .audioQuality(1)
+    .audioFilters('volume=1.0');
 };
 
 export {
