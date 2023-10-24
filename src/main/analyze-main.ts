@@ -6,12 +6,18 @@ import { promisify } from 'util';
 import { AnalyzeWindow } from './windows/analyze-window';
 
 // * Import whisper
-const whisperAddonSubPath =
+
+const whisperAddonPath =
   process.platform === 'win32'
-    ? 'addons/windows/whisper-addon'
-    : // TODO check support for other platforms (eg. Linux)
-      'addons/mac/whisper-addon';
-const { whisper } = require(path.join(__dirname, whisperAddonSubPath)) as {
+    ? // Windows
+      'addons/windows/whisper-addon'
+    : process.arch === 'arm64'
+    ? // Mac M1
+      'addons/mac/arm64/whisper-addon'
+    : // Mac Intel
+      'addons/mac/x64/whisper-addon';
+
+const { whisper } = require(path.join(__dirname, whisperAddonPath)) as {
   whisper: any;
 };
 
@@ -71,8 +77,8 @@ const analyzeVideo = async (
 
   const runWhisper = promisify(whisper);
   const rawResultList = await runWhisper({
-    language: 'auto',
-    model: path.join(__dirname, 'assets/ggml-tiny.bin'),
+    language: 'ja',
+    model: path.join(__dirname, 'assets/ggml-small.bin'),
     fname_inp: filePath,
   });
 
