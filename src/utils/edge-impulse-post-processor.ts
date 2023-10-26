@@ -71,7 +71,7 @@ export class EdgeImpulsePostProcessor {
 }
 
 class EdgeImpulseConfigs {
-  static scoreThreshold = 0.9;
+  static scoreThreshold = 0.8;
 
   /** This should be greater than the longest label's speech duration */
   static recentDurationInMsThreshold = 2000;
@@ -80,7 +80,7 @@ class EdgeImpulseConfigs {
    * accordingly */
   static resultCountThresholdByVoiceCommand: Record<VoiceCommand, number> = {
     start: 3,
-    stop: 4,
+    stop: 3,
   };
 
   static voiceCommandByLabel: Record<string, VoiceCommand> = {

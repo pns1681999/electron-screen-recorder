@@ -1,6 +1,7 @@
 const ffmpeg = require('fluent-ffmpeg');
 const stream = require('stream');
 const { join } = require('path');
+const fs = require('fs');
 const isDev = require('electron-is-dev');
 import { VIDEO_FILTER, VIDEO_OPTIONS } from './tool';
 // const process = require('child_process');
@@ -58,6 +59,63 @@ const getVideoInfo = (filePath: string) => {
   });
 };
 
+const checkVideoHas = (metadata: any, codecType = 'audio') => {
+  return metadata.streams.some((stream: any) => stream.codec_type === codecType);
+}
+
+const addSilentAudio = async ({
+  sources = [],
+  videoInfos = []
+}) => {
+  const newSources = [];
+  const removeFiles = [];
+  const process = (filePath: string, outputFileName: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const cmd = ffmpeg(filePath).input('anullsrc')
+      .inputFormat('lavfi')
+      .outputOptions([
+        '-c:v copy',
+        '-c:a aac',
+        '-shortest',
+      ])
+      .renice(-5)
+      .save(outputFileName)
+      .on('start', (commandLine: string) => {
+        console.log('👉 CMD SilentAudio:::', commandLine);
+      })
+      .on('error', (err: Record<string, any>) => {
+        cmd.kill()
+        reject(err);
+      })
+      .on('end', () => {
+        cmd.kill()
+        resolve(outputFileName);
+      })
+    })
+  }
+
+  for (let index = 0; index < sources.length; index++) {
+    let filePath = sources[index]
+    const indexFile = filePath.lastIndexOf('/');
+    const folderPath = filePath.slice(0, indexFile);
+    const outputFileName = `${folderPath}/${Date.now()}.mp4`
+    const hasAudio = checkVideoHas(videoInfos[index]);
+    if (!hasAudio) {
+      filePath = await process(sources[index], outputFileName)
+      removeFiles.push(filePath);
+    }
+    newSources.push(filePath);
+  }
+
+  return [newSources, removeFiles];
+}
+
+const removeFiles = (filePaths: string[]) => {
+  filePaths.forEach((filePath: string) => {
+    fs.unlinkSync(filePath)
+  })
+}
+
 const buildMergeVideoCommand = ({
   sources,
   fileType = 'mp4',
@@ -68,7 +126,7 @@ const buildMergeVideoCommand = ({
   filePath: string;
 }) => {
   const namingInput = (index: number) => `${index}`;
-  const namingOutput = (index: number) => `output${index}`;
+  const namingOutput = (index: number) => `v${index}`;
 
   const configOption = {
     scale: 'hd',
@@ -115,7 +173,7 @@ const buildMergeVideoCommand = ({
       // VIDEO_OPTIONS.animation,
       // VIDEO_OPTIONS.strict,
       VIDEO_OPTIONS[configOption.export],
-    ]);
+    ])
 
   return ffmpegCmd;
 };
@@ -147,6 +205,9 @@ export {
   getFfprobePath,
   ffmpeg,
   getVideoInfo,
+  checkVideoHas,
+  addSilentAudio,
+  removeFiles,
   buildMergeVideoCommand,
   createTaskConvertVideoFile,
 };

@@ -99,6 +99,7 @@ const VIDEO_FILTER = {
   fade: (animation: string) => `${VIDEO_FADE_ANIMATION[animation]}`,
   overlay: (overlay: string) => `overlay=${VIDEO_OVERLAY[overlay]}`,
   format: (format = 'yuv420p') => `format=${format}`,
+  fps: (val = 30) => `fps=${val}`,
 }
 
 export {
@@ -110,3 +111,35 @@ export {
   VIDEO_OPTIONS,
   VIDEO_FILTER,
 }
+
+/**
+ * @description cmd adding silent audio in ffmpeg after merge multi video => take time
+  //* CMD::: ffmpeg -i /Users/tinh/Downloads/2160 _3840_portrait_60fps.MOV -i /Users/tinh/Downloads/3840 _2160_landscape_60fps.MOV -i /Users/tinh/Downloads/a_720_1280_portrait_30fps.MOV -y -filter_complex [0]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setdar=16/9,format=yuv420p[v0];[1]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setdar=16/9,format=yuv420p[v1];[2]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setdar=16/9,format=yuv420p[v2];[v0][0:a][v1][1:a][v2][2:a]concat=n=3:v=1:a=1[video][audio] -map [video] -map [audio] -ab 48k -ac 2 -ar 22050 -s 1280x720 -crf 27 -vcodec libx264 -q 4 -r 30 -threads 2 -preset ultrafast -shortest -f mp4 /Users/tinh/Downloads/merge-vid-1698208281328.mp4
+  //! CMD::: ffmpeg -i /Users/tinh/Downloads/1280 x720_v1.mp4 -i /Users/tinh/Downloads/1920 x1080_v2.mp4  -filter_complex "[0]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setdar=16/9,format=yuv420p[v0];[1]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setdar=16/9,format=yuv420p[v1];[v0][0:a][v1][1:a]concat=n=2:v=1:a=1[v][a]" -map "[v]" -map "[a]" -r 30 -c:v libx264 -c:a aac -movflags +faststart -y /Users/tinh/Downloads/merge-vid-1698208150215.mp4 
+
+  */
+  // const ffmpegCmd = executeFfmpeg(`-i ${sources} -f lavfi -i anullsrc -map 0:v -map 1:a -c:v copy -shortest`)
+  // const hasExistedAudio = sources.every((_, index) => checkVideoHas(videoInfos[index]));
+  // const ffmpegCmd = executeFfmpeg([
+  //   ...sources.map((filePath: string) => `-i ${filePath} `),
+  //   hasExistedAudio ? `-filter_complex ` : `-f lavfi -i anullsrc -filter_complex `,
+  //   ...sources.map(
+  //     (_, index) =>
+  //       `[${namingInput(index)}]${VIDEO_FILTER.scale(
+  //         configOption.scale
+  //       )},${VIDEO_FILTER.pad(configOption.scale)},${VIDEO_FILTER.aspectRatio(
+  //         configOption.ratio
+  //       )},${VIDEO_FILTER.format()}[${namingOutput(index)}];`
+  //   ),
+  //   sources
+  //     .map((_, index) => {
+  //       const hasAudio = checkVideoHas(videoInfos[index]);
+  //       const patchNoAudio = hasAudio ? `${index}:a` : `${sources.length}:a`
+
+  //       return `[${namingOutput(index)}][${patchNoAudio}]`
+  //     })
+  //     .join('')
+  //     .concat(`concat=n=${sources.length}:v=1:a=1[video][audio]`),
+  //   ' -map [video] -map [audio] -ab 48k -ac 2 -ar 22050 -crf 27 -vcodec libx264 -q 4 -r 30 -threads 2 -preset ultrafast -shortest -f mp4',
+    
+  // ].join(''));

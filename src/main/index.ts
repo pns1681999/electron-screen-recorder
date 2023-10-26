@@ -26,7 +26,9 @@ import {
 import { handleSelectVideoToAnalyze } from './analyze-main';
 // TODO: Configure menu
 import {
+  addSilentAudio,
   buildMergeVideoCommand,
+  removeFiles,
   createTaskConvertVideoFile,
   getVideoInfo,
 } from '../lib/ffmpeg';
@@ -327,7 +329,7 @@ const handleMergeVideos = async (
   // get total duration of videos
   const promises = videoPaths.map((videoPath) => getVideoInfo(videoPath));
   const videoInfos = await Promise.all(promises);
-  console.log('video infos', videoInfos);
+  // console.log('video infos', videoInfos);
   const totalDuration = videoInfos.reduce((acc, videoInfo: any) => {
     // huhm, in case webm. It could not detect duration
     const duration =
@@ -338,15 +340,22 @@ const handleMergeVideos = async (
   console.log('total duration', totalDuration);
 
   const sourceWindow = windows.get('sourceWindow');
-  const ffmpeg = buildMergeVideoCommand({
+
+  const [newSources, tempFilePaths] = await addSilentAudio({
     sources: videoPaths,
+    videoInfos,
+  })
+
+  const ffmpeg = await buildMergeVideoCommand({
+    sources: newSources,
     filePath,
     fileType: 'mp4',
   });
+
   ffmpeg
     .save(filePath)
     .on('start', (commandLine: string) => {
-      console.log('👉 Waiting:::', commandLine);
+      console.log('👉 CMD:::', commandLine);
       sourceWindow.webContents.send('merging-video', {
         label: 'Waiting',
         value: 0,
@@ -384,6 +393,7 @@ const handleMergeVideos = async (
     .on('end', () => {
       // progressBar.value = 100;
       console.log('👉 DONE !!!!');
+      removeFiles(tempFilePaths);
       sourceWindow.webContents.send('merging-video', {
         label: 'Success',
         value: 100,
