@@ -344,7 +344,7 @@ const handleMergeVideos = async (
   const [newSources, tempFilePaths] = await addSilentAudio({
     sources: videoPaths,
     videoInfos,
-  })
+  });
 
   const ffmpeg = await buildMergeVideoCommand({
     sources: newSources,
@@ -352,8 +352,9 @@ const handleMergeVideos = async (
     fileType: 'mp4',
   });
 
+  console.log('🫵🫵🫵:', newSources);
+
   ffmpeg
-    .save(filePath)
     .on('start', (commandLine: string) => {
       console.log('👉 CMD:::', commandLine);
       sourceWindow.webContents.send('merging-video', {
@@ -383,6 +384,7 @@ const handleMergeVideos = async (
     })
     .on('error', (err: Record<string, any>) => {
       console.log('👉 ERROR:::', err.message);
+      ffmpeg.kill();
       sourceWindow.webContents.send('merging-video', {
         label: 'Error',
         value: 0,
@@ -392,6 +394,7 @@ const handleMergeVideos = async (
     })
     .on('end', () => {
       // progressBar.value = 100;
+      ffmpeg.kill();
       console.log('👉 DONE !!!!');
       removeFiles(tempFilePaths);
       sourceWindow.webContents.send('merging-video', {
@@ -401,7 +404,8 @@ const handleMergeVideos = async (
         commandLine: '',
         filePath,
       });
-    });
+    })
+    .save(filePath);
 };
 
 // This method will be called when Electron has finished

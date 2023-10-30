@@ -8,7 +8,6 @@ import { VitePlugin } from '@electron-forge/plugin-vite';
 
 const config: ForgeConfig = {
   packagerConfig: {
-    appBundleId: 'com.poc.yarikata',
     osxSign: {
       type: 'development',
     },

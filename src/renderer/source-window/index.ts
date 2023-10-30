@@ -109,6 +109,7 @@ const buildListElement = (sources: any[]) => {
     return listItem;
   });
 };
+const listElement = document.getElementById('merge-list');
 
 const showMergeVideoModal = (sources: any[]) => {
   if (sources.length === 0) {
@@ -119,9 +120,9 @@ const showMergeVideoModal = (sources: any[]) => {
   modal?.hide();
 
   const $modalElm: HTMLElement = document.querySelector('#merge-modal');
-
+  mergeButton.classList.remove('hidden');
   // build modal content
-  const listElement = document.getElementById('merge-list');
+  listElement.replaceChildren(...[]);
 
   const listItems = buildListElement(sources);
   // append list items to list element
@@ -177,80 +178,79 @@ const showMergeVideoModal = (sources: any[]) => {
 
   listElement.appendChild(listWrapper);
 
-  // add listener to merge button
-  const mergeButton = document.getElementById('btn-merge-videos');
-
-  mergeButton.addEventListener('click', async () => {
-    console.log('merge button clicked');
-    // get all selected videos
-    const selectedVideos = document.querySelectorAll(
-      '#merge-list > div.video-item'
-    );
-    console.log('selected videos', selectedVideos);
-    const videoPaths = Array.from(selectedVideos).map((item: any) => {
-      return item.querySelector('img').alt;
-    });
-
-    console.log('video paths', videoPaths);
-
-    // ask user path to save file
-    const { canceled, filePath } = await window.api.selectPathToSaveFile();
-    if (canceled) {
-      console.log('user canceled save video');
-      return;
-    }
-
-    console.log('save video to', filePath);
-
-    // add listener to show progress
-    let total = 0;
-    let progressBar: any = null;
-    window.api.onMergingVideo((args: any) => {
-      const { label, value, message, totalDuration } = args;
-      if (label === 'Waiting') {
-        // clear list element
-        listElement.innerHTML = '';
-        // create progress bar element
-        progressBar = document.createElement('progress');
-        listElement.appendChild(progressBar);
-        total = totalDuration;
-
-        // hide button merge
-        // mergeButton.classList.add('hidden');
-
-        // set max value, value = 0
-        progressBar.max = 100;
-        progressBar.value = 0;
-
-        // set style for progress bar, add class: w-full h-2 bg-gray-200 rounded-lg
-        progressBar.classList.add('w-full', 'h-2', 'bg-gray-200', 'rounded-lg');
-      } else if (label === 'Progress') {
-        // update progress bar
-        console.log('update progress bar event', args);
-        const progress = Math.round((value / total) * 100);
-        // console.log('progress', progress);
-        progressBar.value = progress;
-      } else if (label === 'Success') {
-        console.log('merge success');
-        progressBar.value = 100;
-
-        // show file path at below progress bar
-        const filePathElm = document.createElement('div');
-        filePathElm.classList.add('text-sm', 'text-gray-500');
-        filePathElm.innerHTML = filePath;
-        listElement.appendChild(filePathElm);
-        progressBar.classList.add('hidden');
-      }
-
-      // console.log('args', args);
-    });
-    await window.api.mergeVideos(videoPaths, filePath);
-  });
-
   // show modal
   modal = new Modal($modalElm);
   modal.show();
 };
+
+// add listener to merge button
+const mergeButton = document.getElementById('btn-merge-videos');
+
+mergeButton.addEventListener('click', async () => {
+  // get all selected videos
+  const selectedVideos = document.querySelectorAll(
+    '#merge-list > div.video-item'
+  );
+  console.log('selected videos', selectedVideos);
+  const videoPaths = Array.from(selectedVideos).map((item: any) => {
+    return item.querySelector('img').alt;
+  });
+
+  // ask user path to save file
+  const { canceled, filePath } = await window.api.selectPathToSaveFile();
+  if (canceled) {
+    console.log('user canceled save video');
+    return;
+  }
+
+  console.log('save video to', filePath);
+
+  // add listener to show progress
+  let total = 0;
+  let progressBar: any = null;
+  window.api.onMergingVideo((args: any) => {
+    const { label, value, message, totalDuration } = args;
+    mergeButton.classList.add('hidden');
+    if (label === 'Waiting') {
+      // clear list element
+      listElement.innerHTML = '';
+      // create progress bar element
+      progressBar = document.createElement('progress');
+      listElement.appendChild(progressBar);
+      total = totalDuration;
+
+      // hide button merge
+      // mergeButton.classList.add('hidden');
+
+      // set max value, value = 0
+      progressBar.max = 100;
+      progressBar.value = 0;
+
+      // set style for progress bar, add class: w-full h-2 bg-gray-200 rounded-lg
+      progressBar.classList.add('w-full', 'h-2', 'bg-gray-200', 'rounded-lg');
+    } else if (label === 'Progress') {
+      // update progress bar
+      console.log('update progress bar event', args);
+      const progress = Math.round((value / total) * 100);
+      // console.log('progress', progress);
+      progressBar.value = progress;
+    } else if (label === 'Success') {
+      console.log('merge success');
+      progressBar.value = 100;
+
+      // show file path at below progress bar
+      const filePathElm = document.createElement('div');
+      filePathElm.classList.add('text-sm', 'text-gray-500');
+      filePathElm.innerHTML = filePath;
+      console.log(filePathElm);
+      listElement.replaceChildren(filePathElm);
+      progressBar.remove();
+    }
+
+    // console.log('args', args);
+  });
+  await window.api.mergeVideos(videoPaths, filePath);
+});
 
 // handle events save video(convert video)
 const $progressBar = document.querySelector('#progress-bar');
